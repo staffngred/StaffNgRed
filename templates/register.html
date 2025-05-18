@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Inscription{% endblock %}
+{% block content %}
+<h2>Inscription</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">{{ form.username.label(class_="form-label") }}{{ form.username(class_="form-control") }}</div>
+    <div class="mb-3">{{ form.password.label(class_="form-label") }}{{ form.password(class_="form-control") }}</div>
+    <div class="mb-3">{{ form.confirm.label(class_="form-label") }}{{ form.confirm(class_="form-control") }}</div>
+    <button type="submit" class="btn btn-success">S'inscrire</button>
+</form>
+<p class="mt-3"><a href="{{ url_for('main.login') }}">Retour à la connexion</a></p>
+{% endblock %}

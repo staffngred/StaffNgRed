@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4 text-center">Tableau de bord administrateur</h1>
+
+    <div class="mb-5">
+        <h2 class="mb-3">Utilisateurs enregistrés</h2>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Nom d'utilisateur</th>
+                        <th>Rôle</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in approved_users %}
+<tr>
+    <td>{{ user.username }}</td>
+    <td>
+        {% if user.is_admin %}
+            Administrateur
+        {% elif user.role == 'modérateur+' %}
+            Modérateur
+        {% else %}
+            Utilisateur
+        {% endif %}
+    </td>
+    <td>
+        {% if not user.is_admin %}
+            <a href="{{ url_for('main.toggle_moderator', user_id=user.id) }}" class="btn btn-sm {% if user.role == 'modérateur+' %}btn-secondary{% else %}btn-info{% endif %}">
+                {% if user.role == 'modérateur+' %}
+                    Enlever Modérateur
+                {% else %}
+                    Rendre Modérateur
+                {% endif %}
+            </a>
+            <a href="{{ url_for('main.promote_user', user_id=user.id) }}" class="btn btn-sm btn-warning">Rendre admin</a>
+        {% endif %}
+        <a href="{{ url_for('main.delete_user', user_id=user.id) }}" class="btn btn-sm btn-danger">Supprimer</a>
+    </td>
+</tr>
+{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+    <table>
+  <thead>
+    <tr>
+      <th>Nom</th>
+      <th>Rôle</th>
+      <th>Changer le rôle</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for user in users %}
+    <tr>
+      <td>{{ user.username }}</td>
+      <td>{{ user.role }}</td>
+      <td>
+        <form method="POST" action="{{ url_for('change_role', user_id=user.id) }}">
+          <select name="new_role">
+            <option value="utilisateur" {% if user.role == 'utilisateur' %}selected{% endif %}>Utilisateur</option>
+            <option value="modérateur+" {% if user.role == 'modérateur+' %}selected{% endif %}>Modérateur+</option>
+            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+          </select>
+          <button type="submit">Modifier</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+    <div>
+        <h2 class="mb-3">Utilisateurs en attente d’approbation</h2>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Nom d'utilisateur</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in pending_approval %}
+                        <tr>
+                            <td>{{ user.username }}</td>
+                            <td>
+                                <a href="{{ url_for('main.approve_user', user_id=user.id) }}" class="btn btn-sm btn-success">Approuver</a>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="2">Aucun utilisateur en attente.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

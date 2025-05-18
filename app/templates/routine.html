@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Routines</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #222;
+            letter-spacing: 1px;
+        }
+
+        a#startRoutineBtn {
+            display: inline-block;
+            background-color: #4caf50;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            box-shadow: 0 3px 8px rgba(76, 175, 80, 0.4);
+            transition: background-color 0.3s ease;
+            margin-bottom: 40px;
+        }
+
+        a#startRoutineBtn:hover {
+            background-color: #43a047;
+            box-shadow: 0 5px 12px rgba(67, 160, 71, 0.6);
+        }
+
+        .info-message {
+            font-style: italic;
+            color: #666;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 6px;
+            color: #555;
+        }
+
+        #routinesList {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .routine-box {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 18px 20px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .routine-box.finished {
+            border-left: 6px solid #4caf50;
+            background-color: #e9f7ef;
+        }
+
+        .routine-box.unfinished {
+            border-left: 6px solid #f44336;
+            background-color: #fef0f0;
+        }
+
+        .routine-box p {
+            margin: 8px 0;
+            font-size: 14px;
+            line-height: 1.4;
+            color: #444;
+        }
+
+        .routine-box strong {
+            color: #222;
+        }
+
+        .finishBtn {
+            margin-top: 15px;
+            align-self: flex-start;
+            padding: 8px 14px;
+            font-size: 14px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.25s ease;
+            box-shadow: 0 2px 5px rgba(244, 67, 54, 0.5);
+        }
+
+        .finishBtn:hover {
+            background-color: #d32f2f;
+            box-shadow: 0 4px 9px rgba(211, 47, 47, 0.7);
+        }
+
+        p > a {
+            color: #2196f3;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.25s ease;
+        }
+
+        p > a:hover {
+            color: #1769aa;
+            text-decoration: underline;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            color: #999;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Routines</h1>
+
+    {% if can_add %}
+        <p style="text-align:center;"><a href="#" id="startRoutineBtn">Lancer une nouvelle routine</a></p>
+    {% else %}
+        <p class="info-message">Vous devez attendre 1h 30 avant d’ajouter une nouvelle routine.</p>
+    {% endif %}
+
+        <p style="text-align:center;"><a href="{{ url_for('main.dashboard') }}">← Retour au tableau de bord</a></p>
+        
+    <h2>Historique des routines</h2>
+    <div id="routinesList">
+        {% for routine in routines %}
+            <div class="routine-box {% if routine.end_time %}finished{% else %}unfinished{% endif %}" data-id="{{ routine.id }}">
+                <p><strong>Début :</strong> {{ routine.start_time }}</p>
+                <p><strong>Fin :</strong> {{ routine.end_time or 'En cours' }}</p>
+                <p><strong>Effectuée par :</strong> {{ routine.user.username }}</p>
+                <p><strong>Description :</strong> {{ routine.description or '—' }}</p>
+                {% if not routine.end_time %}
+                    <button class="finishBtn">Terminer</button>
+                {% endif %}
+            </div>
+        {% else %}
+            <p>Aucune routine disponible.</p>
+        {% endfor %}
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const startBtn = document.getElementById('startRoutineBtn');
+        if (startBtn) {
+            startBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                fetch('{{ url_for("routine.start_routine") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Routine lancée ! Recharge la page pour voir.');
+                        location.reload();
+                    } else {
+                        alert('Erreur : ' + (data.error || 'Erreur inconnue'));
+                    }
+                })
+                .catch(() => alert('Erreur réseau'));
+            });
+        }
+
+        document.querySelectorAll('.finishBtn').forEach(button => {
+            button.addEventListener('click', function() {
+                const routineDiv = button.closest('.routine-box');
+                const routineId = routineDiv.getAttribute('data-id');
+                const comment = prompt("Commentaire de fin (optionnel) :");
+                fetch(`{{ url_for("routine.finish_routine", routine_id=0) }}`.replace('0', routineId), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comment: comment || '' })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Routine terminée ! Recharge la page.');
+                        location.reload();
+                    } else {
+                        alert('Erreur : ' + (data.error || 'Erreur inconnue'));
+                    }
+                })
+                .catch(() => alert('Erreur réseau'));
+            });
+        });
+    });
+    </script>
+</body>
+</html>

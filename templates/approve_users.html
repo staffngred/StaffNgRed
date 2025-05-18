@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Approbation des comptes{% endblock %}
+{% block content %}
+<h2>Approbation des comptes</h2>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Nom d'utilisateur</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.username }}</td>
+            <td>
+                <a href="{{ url_for('main.approve_user', user_id=user.id) }}" class="btn btn-success">Approuver</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

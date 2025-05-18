@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Inscription</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <!-- Affichage des erreurs pour le champ username -->
+    {% if form.username.errors %}
+        <div class="alert alert-danger">
+            {% for error in form.username.errors %}
+                <p>{{ error }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+    <div class="form-group">
+        {{ form.username.label }} 
+        {{ form.username(class="form-control") }}
+    </div>
+
+    <!-- Affichage des erreurs pour le champ password -->
+    {% if form.password.errors %}
+        <div class="alert alert-danger">
+            {% for error in form.password.errors %}
+                <p>{{ error }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+    <div class="form-group">
+        {{ form.password.label }} 
+        {{ form.password(class="form-control", type="password") }}
+    </div>
+
+    <div class="form-group">
+        {{ form.submit(class="btn btn-primary") }}
+    </div>
+</form>
+
+<p>Déjà inscrit ? <a href="{{ url_for('main.login') }}">Se connecter ici</a></p>
+{% endblock %}

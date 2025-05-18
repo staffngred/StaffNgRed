@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>📋 Rapports</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+
+    .rapport-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+    }
+
+    .green {
+      border-left: 8px solid #28a745;
+    }
+
+    .red {
+      border-left: 8px solid #dc3545;
+    }
+
+    .orange {
+      border-left: 8px solid #ffc107;
+    }
+
+    p {
+      margin: 5px 0;
+      color: #555;
+    }
+
+    strong {
+      color: #222;
+    }
+
+    .buttons {
+      margin-top: 15px;
+    }
+
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-right: 10px;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+
+    .fait {
+      background-color: #28a745;
+      color: white;
+    }
+
+    .fait:hover {
+      background-color: #218838;
+    }
+
+    .refuse {
+      background-color: #dc3545;
+      color: white;
+    }
+
+    .refuse:hover {
+      background-color: #c82333;
+    }
+
+    .statut-badge {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 12px;
+      font-size: 0.85em;
+      font-weight: 600;
+    }
+
+    .statut-fait {
+      background-color: #e6f4ea;
+      color: #28a745;
+    }
+
+    .statut-refuse {
+      background-color: #fbe9eb;
+      color: #dc3545;
+    }
+
+    .statut-attente {
+      background-color: #fff8e1;
+      color: #ffc107;
+    }
+  </style>
+  
+</head>
+<body>
+  <h1>📋 Liste des Rapports</h1>
+          <p style="text-align:center;"><a href="{{ url_for('main.dashboard') }}">← Retour au tableau de bord</a></p>
+  <div class="rapport-container">
+    {% for rapport in rapports %}
+      <div id="rapport-{{ rapport.id }}" class="card {% if rapport.statut == 'fait' %}green{% elif rapport.statut == 'refuse' %}red{% else %}orange{% endif %}">
+        <p><strong>👤 Créé par :</strong> {{ rapport.creator.username }}</p>
+        <p><strong>📅 Date :</strong> {{ rapport.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+        <p><strong>📝 Contenu :</strong> {{ rapport.contenu }}</p>
+        <p>
+          <strong>📌 Statut :</strong>
+          <span class="statut-badge {% if rapport.statut == 'fait' %}statut-fait{% elif rapport.statut == 'refuse' %}statut-refuse{% else %}statut-attente{% endif %}">
+            {{ rapport.statut }}
+          </span>
+        </p>
+        <div class="buttons">
+          <button class="fait" onclick="changerStatut({{ rapport.id }}, 'fait')">✅ Marquer comme fait</button>
+          <button class="refuse" onclick="changerStatut({{ rapport.id }}, 'refuse')">❌ Refuser</button>
+        </div>
+      </div>
+    {% else %}
+      <p style="text-align: center;">Aucun rapport enregistré.</p>
+    {% endfor %}
+  </div>
+
+  <script>
+    function changerStatut(id, statut) {
+      fetch(`/rapport/${id}/statut`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statut: statut })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if(data.success) {
+          const div = document.getElementById(`rapport-${id}`);
+          div.classList.remove('orange', 'green', 'red');
+          if(statut === 'fait') div.classList.add('green');
+          else if(statut === 'refuse') div.classList.add('red');
+          else div.classList.add('orange');
+
+          // Met à jour la couleur et le texte du badge statut
+          const badge = div.querySelector('.statut-badge');
+          badge.className = 'statut-badge';
+          if (statut === 'fait') {
+            badge.classList.add('statut-fait');
+          } else if (statut === 'refuse') {
+            badge.classList.add('statut-refuse');
+          } else {
+            badge.classList.add('statut-attente');
+          }
+          badge.textContent = statut;
+        }
+      });
+    }
+  </script>
+</body>
+</html>

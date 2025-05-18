@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Bienvenue, {{ name }} 👋</h2>
+    
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        <!-- Routine -->
+        <div class="col">
+            <div class="card h-100 shadow rounded">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">Routines</h5>
+                    <p class="card-text">Gérez vos routines ici.</p>
+                    <a href="{{ url_for('routine.routine_page') }}" class="btn btn-primary mt-auto">Accéder</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rapports -->
+        <div class="col">
+            <div class="card h-100 shadow rounded">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">Rapports</h5>
+                    <p class="card-text">Consultez les rapports générés.</p>
+                    <a href="{{ url_for('main.reports') }}" class="btn btn-warning mt-auto">Accéder</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profil -->
+        <div class="col">
+            <div class="card h-100 shadow rounded">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">Mon profil</h5>
+                    <p class="card-text">Consultez ou modifiez votre profil.</p>
+                    <a href="{{ url_for('main.profile') }}" class="btn btn-info mt-auto">Accéder</a>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card h-100 shadow rounded">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">Chat Filter</h5>
+                    <p class="card-text">Filtrez les messages du chat.</p>
+                    <a href="{{ url_for('main.chat_filter') }}" class="btn btn-secondary mt-auto">Accéder</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

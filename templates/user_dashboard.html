@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h1>Bienvenue {{ user.username }} !</h1>
+    
+    {% if not user.is_approved %}
+        <div class="alert alert-warning">
+            Votre compte est en attente d'approbation. Vous avez un accès limité.
+        </div>
+    {% else %}
+        <p>Votre compte est approuvé. Vous pouvez profiter pleinement du site.</p>
+    {% endif %}
+
+    <a href="{{ url_for('user.profile') }}" class="btn btn-primary">Modifier mon mot de passe</a>
+</div>
+{% endblock %}

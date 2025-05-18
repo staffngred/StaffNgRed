@@ -1,0 +1,361 @@
+# -*- coding: utf-8 -*-
+from flask import Blueprint, render_template, redirect, url_for, flash
+from .routine_routes import routine_bp
+from flask_login import login_user, login_required, logout_user, current_user
+from .forms import LoginForm, RegisterForm, ChangePasswordForm
+from .models import User
+from . import db
+from werkzeug.security import generate_password_hash, check_password_hash
+
+
+main = Blueprint('main', __name__)
+
+# Route pour la page d'accueil, redirige vers la page de login
+@main.route('/')
+def home():
+    return redirect(url_for('main.login'))
+
+# Route pour la page de connexion
+@main.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first()
+        if user and check_password_hash(user.password, form.password.data):
+            if user.is_approved:
+                login_user(user)
+                # Si l'utilisateur est un admin, redirige vers le panel d'admin
+                if user.is_admin:
+                    return redirect(url_for('main.admin_dashboard'))  # Redirection vers le tableau de bord admin
+                return redirect(url_for('main.dashboard'))
+            else:
+                flash("Compte en attente d'approbation", "warning")
+        else:
+            flash("Identifiants incorrects", "danger")
+    return render_template('login.html', form=form)
+
+# Route pour la page d'inscription
+@main.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegisterForm()
+    if form.validate_on_submit():
+        # Vérifier si le nom d'utilisateur est déjà pris
+        user = User.query.filter_by(username=form.username.data).first()
+        if user:
+            flash("Ce nom d'utilisateur est déjà pris. Choisissez-en un autre.", "danger")
+        else:
+            hashed_pw = generate_password_hash(form.password.data)
+            new_user = User(username=form.username.data, password=hashed_pw)
+            db.session.add(new_user)
+            db.session.commit()
+            flash("Compte créé avec succès. En attente d’approbation.", "success")
+            return redirect(url_for('main.login'))  # Rediriger vers la page de login après inscription réussie
+    return render_template('register.html', form=form)
+
+# Route pour le tableau de bord utilisateur (requiert une authentification)
+@main.route('/dashboard')
+@login_required
+def dashboard():
+    return render_template('dashboard.html', name=current_user.username)
+
+# Route pour la déconnexion
+@main.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('main.login'))
+
+# Route pour approuver les utilisateurs en attente
+@main.route('/admin/approve')
+@login_required
+def approve_users():
+    if not current_user.is_admin:
+        flash("Accès refusé", "danger")
+        return redirect(url_for('main.dashboard'))
+
+    users = User.query.filter_by(is_approved=False).all()
+    return render_template('approve_users.html', users=users)
+
+# Route pour approuver un utilisateur spécifique
+@main.route('/admin/approve/<int:user_id>')
+@login_required
+def approve_user(user_id):
+    if not current_user.is_admin:
+        flash("Accès refusé", "danger")
+        return redirect(url_for('main.dashboard'))
+
+    user = User.query.get(user_id)
+    if user:
+        user.is_approved = True
+        db.session.commit()
+        flash(f"L'utilisateur {user.username} a été approuvé", "success")
+    return redirect(url_for('main.approve_users'))
+
+# Route pour gérer les utilisateurs
+@main.route('/admin/users')
+@login_required
+def manage_users():
+    if not current_user.is_admin:
+        flash("Vous n'avez pas l'autorisation d'accéder à cette page.", "danger")
+        return redirect(url_for('main.dashboard'))
+
+    users = User.query.all()  # Récupérer tous les utilisateurs
+    return render_template('manage_users.html', users=users)
+
+# Route pour supprimer un utilisateur
+@main.route('/admin/delete_user/<int:user_id>')
+@login_required
+def delete_user(user_id):
+    if not current_user.is_admin:
+        flash("Vous n'avez pas l'autorisation de supprimer des utilisateurs.", "danger")
+        return redirect(url_for('main.dashboard'))
+
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+    flash(f"L'utilisateur {user.username} a été supprimé.", "success")
+    return redirect(url_for('main.manage_users'))
+
+# Route pour changer le mot de passe (admin uniquement)
+@main.route('/admin/change_password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if not current_user.is_admin:
+        flash("Vous n'avez pas l'autorisation de modifier votre mot de passe.", "danger")
+        return redirect(url_for('main.dashboard'))
+
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        # Vérifier l'ancien mot de passe
+        if check_password_hash(current_user.password, form.old_password.data):
+            hashed_pw = generate_password_hash(form.new_password.data)
+            current_user.password = hashed_pw
+            db.session.commit()
+            flash("Mot de passe modifié avec succès.", "success")
+            return redirect(url_for('main.dashboard'))
+        else:
+            flash("Ancien mot de passe incorrect.", "danger")
+
+    return render_template('change_password.html', form=form)
+
+@main.route('/admin/dashboard')
+@login_required
+def admin_dashboard():
+    if not current_user.is_admin:
+        flash("Vous n'avez pas l'autorisation d'accéder à ce tableau de bord.", "danger")
+        return redirect(url_for('main.dashboard'))
+
+    total_users = User.query.count()
+    pending_approval = User.query.filter_by(is_approved=False).all()
+    approved_users = User.query.filter_by(is_approved=True).all()
+
+    return render_template(
+        'admin_dashboard.html',
+        total_users=total_users,
+        approved_users=approved_users,
+        pending_approval=pending_approval
+    )
+
+
+@main.route('/toggle_moderator/<int:user_id>')
+@login_required
+def toggle_moderator(user_id):
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for('main.admin_dashboard'))
+
+    user = User.query.get_or_404(user_id)
+
+    if user.role == 'modérateur+':
+        user.role = 'utilisateur'
+        flash(f"{user.username} n'est plus modérateur.", "info")
+    else:
+        user.role = 'modérateur+'
+        flash(f"{user.username} est maintenant modérateur.", "success")
+
+    db.session.commit()
+    return redirect(url_for('main.admin_dashboard'))
+
+# Route pour promouvoir un utilisateur en tant qu'administrateur
+@main.route('/admin/promote_user/<int:user_id>')
+@login_required
+def promote_user(user_id):
+    if not current_user.is_admin:
+        flash("Accès refusé. Seuls les administrateurs peuvent promouvoir des utilisateurs.", "danger")
+        return redirect(url_for('main.dashboard'))
+
+    user = User.query.get(user_id)
+    if user:
+        user.is_admin = True  # Promouvoir l'utilisateur en administrateur
+        db.session.commit()
+        flash(f"L'utilisateur {user.username} a été promu administrateur.", "success")
+    else:
+        flash("Utilisateur introuvable.", "danger")
+
+    return redirect(url_for('main.manage_users'))
+
+@main.route('/profile')
+@login_required
+def profile():
+    return render_template('profile.html')
+
+
+from flask import render_template, redirect, url_for, flash
+from .routine_routes import routine_bp
+from flask_login import login_required, current_user
+
+@main.route('/routines')
+@login_required
+def routines():
+    if current_user.role not in ['admin', 'modérateur+']:
+        flash("Accès refusé : page réservée aux administrateurs et modérateurs+", "danger")
+        return redirect(url_for('dashboard'))
+    return render_template('routines.html')
+
+from flask import render_template, redirect, url_for, flash, request
+from .routine_routes import routine_bp
+from flask_login import login_required, current_user
+
+
+@main.route('/change_role/<int:user_id>', methods=['POST'])
+@login_required
+def change_role(user_id):
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for('dashboard'))
+
+    user = User.query.get_or_404(user_id)
+    new_role = request.form.get('new_role')
+
+    if new_role not in ['utilisateur', 'modérateur+', 'admin']:
+        flash("Rôle invalide.", "warning")
+        return redirect(url_for('admin_dashboard'))
+
+    user.role = new_role
+    if new_role == 'admin':
+        user.is_admin = True
+    else:
+        user.is_admin = False
+    db.session.commit()
+
+    flash(f"Rôle de {user.username} mis à jour en '{new_role}'.", "success")
+    return redirect(url_for('admin_dashboard'))
+
+
+from flask import request, redirect, url_for, flash
+from .routine_routes import routine_bp
+from flask_login import login_required, current_user
+from app import db
+from app.models import User
+
+@main.route('/assign_role/<int:user_id>', methods=['POST'])
+@login_required
+def assign_role(user_id):
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for('main.admin_dashboard'))
+
+    user = User.query.get_or_404(user_id)
+    new_role = request.form.get('role', 'user')
+    user.role = new_role
+    db.session.commit()
+    flash(f"Rôle '{new_role}' attribué à {user.username}.", "success")
+    return redirect(url_for('main.admin_dashboard'))
+
+from flask import redirect, url_for, flash
+from .routine_routes import routine_bp
+from flask_login import login_required, current_user
+from app import db
+from app.models import User
+from flask import Blueprint
+from .routine_routes import routine_bp
+
+@main.route('/promote_moderator/<int:user_id>')
+@login_required
+def promote_moderator(user_id):
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for('main.admin_dashboard'))
+
+    user = User.query.get_or_404(user_id)
+    if user.is_admin:
+        flash("Impossible de modifier un administrateur.", "warning")
+    else:
+        user.role = 'modérateur+'
+        db.session.commit()
+        flash(f"Rôle 'moderator' attribué à l'utilisateur {user.username}.", "success")
+    return redirect(url_for('main.admin_dashboard'))
+
+
+from flask_login import current_user
+from flask import render_template
+from .routine_routes import routine_bp
+
+
+def get_routines_for_user():
+    # Cette fonction affiche la page routines dans le profil
+    if current_user.is_authenticated and current_user.role in ['admin', 'modérateur']:
+        from routine import list_routines
+        return list_routines()
+    return ''
+
+from flask_login import current_user
+from app.models import Routine, Rapport
+
+@main.route('/reports')
+@login_required
+def reports():
+    rapports = Rapport.query.order_by(Rapport.created_at.desc()).all()
+    return render_template('reports.html', rapports=rapports)
+
+
+from flask import Blueprint, render_template, request, jsonify
+from flask_login import login_required
+from datetime import datetime
+import os
+import json
+
+DB_PATH = 'logs/messages.json'
+
+def load_messages():
+    if not os.path.exists(DB_PATH):
+        return []
+    with open(DB_PATH, 'r', encoding='utf-8') as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []
+
+def save_messages(messages):
+    with open(DB_PATH, 'w', encoding='utf-8') as f:
+        json.dump(messages, f, indent=2)
+
+@main.route('/chat_filter')
+@login_required
+def chat_filter():
+    logs = load_messages()
+    return render_template('chat_filter.html', logs=logs)
+
+@main.route('/log', methods=['POST'])
+def receive_log():
+    data = request.json
+    if not data or 'message' not in data:
+        return jsonify({'error': 'Bad request'}), 400
+
+    message = data['message']
+    timestamp = datetime.now().isoformat()
+
+    messages = load_messages()
+
+    # Evite les doublons exacts
+    if any(m['message'] == message for m in messages):
+        return jsonify({'status': 'duplicate'}), 200
+
+    messages.append({
+        'timestamp': timestamp,
+        'message': message,
+        'user': data.get('user', 'inconnu')
+    })
+
+    save_messages(messages)
+    return jsonify({'status': 'saved'}), 200
